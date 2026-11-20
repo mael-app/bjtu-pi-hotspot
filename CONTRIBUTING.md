@@ -25,7 +25,7 @@ Open an issue with:
    ```
    If you have a Pi: run the playbook twice. The second run must report `changed=0`.
    If you touched `roles/bjtu_login/files/bjtu-login`: run `shellcheck` on it.
-4. Open a pull request that says what changed and how you tested it.
+4. Open a pull request that says what changed and how you tested it. CI runs the syntax check, `ansible-lint` and `shellcheck` on every pull request.
 
 ### Conventions
 
@@ -58,7 +58,7 @@ Open an issue with:
    ```
    如果你有树莓派：连续运行两次 playbook，第二次必须显示 `changed=0`。
    如果修改了 `roles/bjtu_login/files/bjtu-login`：请用 `shellcheck` 检查。
-4. 提交 Pull Request，说明改了什么、如何测试的。
+4. 提交 Pull Request，说明改了什么、如何测试的。CI 会对每个 Pull Request 运行语法检查、`ansible-lint` 和 `shellcheck`。
 
 ### 约定
 

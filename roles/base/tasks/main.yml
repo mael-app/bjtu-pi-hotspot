@@ -15,3 +15,53 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
+
+# Unused on a wired gateway: less attack surface, nothing announced on the
+# university network (mDNS), fewer services to keep updated.
+- name: Disable unused services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    masked: true
+    state: stopped
+  loop: "{{ base_disabled_services }}"
+
+- name: Turn off the Wi-Fi and Bluetooth radios
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: "# {mark} ANSIBLE MANAGED: radios"
+    block: |
+      dtoverlay=disable-wifi
+      dtoverlay=disable-bt
+  notify: Schedule a reboot
+
+- name: systemd drop-in directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/systemd/system.conf.d
+    - /etc/systemd/journald.conf.d
+
+# Reboots the board if it hangs (bcm2835 hardware watchdog).
+- name: Hardware watchdog
+  ansible.builtin.copy:
+    dest: /etc/systemd/system.conf.d/watchdog.conf
+    content: |
+      [Manager]
+      RuntimeWatchdogSec=15s
+      RebootWatchdogSec=2min
+    mode: "0644"
+  notify: Re-execute systemd
+
+# Logs in RAM only: spares the SD card (the usual cause of a dead Pi).
+- name: Volatile journal
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/volatile.conf
+    content: |
+      [Journal]
+      Storage=volatile
+      RuntimeMaxUse=64M
+    mode: "0644"
+  notify: Restart journald

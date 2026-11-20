@@ -44,9 +44,9 @@ Need to open more ports? Use `firewall_extra_tcp_ports` / `firewall_extra_udp_po
 | Role | What it does |
 |---|---|
 | `bjtu_login` | Installs `/usr/local/bin/bjtu-login`, `/etc/bjtu-login.env` (0600), a systemd service + timer and a NetworkManager dispatcher (re-login when eth0 comes up). Also does the first portal login if there is no Internet. |
-| `base` | Timezone and base packages (`curl`, `nftables`, `fail2ban`, `network-manager`, ...) |
+| `base` | Timezone, base packages, disables unused services (avahi, Bluetooth, Wi-Fi radios), hardware watchdog, logs kept in RAM to spare the SD card |
 | `network` | Manages only eth1: NetworkManager connection `lan_connection` (`hotspot-lan`), `lan_address` (192.168.50.1/24), shared mode (NAT + DHCP/DNS). eth0 is left on NetworkManager's default DHCP. |
-| `firewall` | nftables inbound rules (table `rpi_guard`: eth1 trusted, SSH + extra ports open, rest dropped) and fail2ban for SSH |
+| `firewall` | nftables inbound rules (table `rpi_guard`): hotspot clients get DHCP, DNS and SSH only; nothing is open on eth0 (SSH included, it has a public IPv6); extra ports optional. Plus fail2ban for SSH |
 | `autoupdate` | Nightly unattended-upgrades, reboot only if required |
 | `ssh` | Port 22422, key-only. Root `authorized_keys` is managed exclusively from the local `authorized_keys` file. Runs last. |
 
@@ -62,7 +62,7 @@ Change the times in `group_vars/all.yml`.
 
 ## Troubleshooting
 
-- Login logs: `journalctl -u bjtu-login`
+- Login logs: `journalctl -u bjtu-login` (logs live in RAM: they are lost on reboot)
 - Next timers: `systemctl list-timers`
 - Force a login: `systemctl start bjtu-login`
 - Preview before a run: `ansible-playbook site.yml --check --diff`

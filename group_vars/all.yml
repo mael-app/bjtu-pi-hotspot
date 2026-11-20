@@ -16,7 +16,7 @@ bjtu_username: "{{ lookup('ansible.builtin.ini', 'BJTU_USERNAME', file=playbook_
 bjtu_password: "{{ lookup('ansible.builtin.ini', 'BJTU_PASSWORD', file=playbook_dir ~ '/.env', type='properties') }}"
 bjtu_portal_url: http://10.10.42.3:801/eportal/portal/login
 bjtu_referer_url: http://10.10.42.3/
-bjtu_check_interval: 5min
+bjtu_check_interval: 2min
 
 # --- Automatic updates ---
 apt_update_time: "03:00"

@@ -44,9 +44,9 @@
 | 角色 | 作用 |
 |---|---|
 | `bjtu_login` | 安装 `/usr/local/bin/bjtu-login`、`/etc/bjtu-login.env`（0600）、systemd 服务 + 定时器，以及 NetworkManager 调度脚本（eth0 连上时重新登录）。如果没有外网，还会完成第一次认证登录。 |
-| `base` | 时区和基础软件包（`curl`、`nftables`、`fail2ban`、`network-manager` 等） |
+| `base` | 时区、基础软件包，关闭不用的服务（avahi、蓝牙、Wi-Fi 无线），硬件看门狗，日志保存在内存中以保护 SD 卡 |
 | `network` | 只管理 eth1：NetworkManager 连接 `lan_connection`（`hotspot-lan`），地址 `lan_address`（192.168.50.1/24），共享模式（NAT + DHCP/DNS）。eth0 保持 NetworkManager 默认的 DHCP。 |
-| `firewall` | nftables 入站规则（表 `rpi_guard`：信任 eth1，开放 SSH 和额外端口，其余丢弃），以及针对 SSH 的 fail2ban |
+| `firewall` | nftables 入站规则（表 `rpi_guard`）：热点客户端只能使用 DHCP、DNS 和 SSH；eth0 上不开放任何端口（包括 SSH，因为它有公网 IPv6）；可选额外端口。另有针对 SSH 的 fail2ban |
 | `autoupdate` | 夜间自动安装更新（unattended-upgrades），仅在需要时重启 |
 | `ssh` | 端口 22422，仅允许密钥登录。root 的 `authorized_keys` 完全由本地 `authorized_keys` 文件管理。最后执行。 |
 
@@ -62,7 +62,7 @@
 
 ## 故障排查
 
-- 登录日志：`journalctl -u bjtu-login`
+- 登录日志：`journalctl -u bjtu-login`（日志保存在内存中，重启后会丢失）
 - 查看定时器：`systemctl list-timers`
 - 手动触发登录：`systemctl start bjtu-login`
 - 运行前预览改动：`ansible-playbook site.yml --check --diff`

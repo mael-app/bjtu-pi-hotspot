@@ -14,9 +14,6 @@ table inet rpi_guard {
 		ct state established,related accept
 		ct state invalid drop
 
-		# Private LAN served by the Pi (dnsmasq DHCP/DNS): everything allowed
-		iifname "{{ lan_interface }}" accept
-
 		# ICMP (rate-limited ping) and ICMPv6, which IPv6 needs to work
 		ip protocol icmp icmp type echo-request limit rate 5/second accept
 		ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
@@ -25,8 +22,12 @@ table inet rpi_guard {
 		# Client DHCPv6
 		ip6 saddr fe80::/10 udp dport 546 accept
 
+		# Hotspot LAN: only what the clients need (dnsmasq DHCP/DNS) and SSH.
+		# SSH is never open on {{ wan_interface }}, which has a public IPv6.
+		iifname "{{ lan_interface }}" udp dport { 53, 67 } accept
+		iifname "{{ lan_interface }}" tcp dport 53 accept
 {% for port in ([ssh_port | int, ansible_port | int] | unique) %}
-		tcp dport {{ port }} accept comment "SSH"
+		iifname "{{ lan_interface }}" tcp dport {{ port }} accept comment "SSH"
 {% endfor %}
 {% for port in firewall_extra_tcp_ports %}
 		tcp dport {{ port }} accept comment "extra tcp"

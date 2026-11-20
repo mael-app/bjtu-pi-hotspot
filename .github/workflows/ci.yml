@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          pip install ansible-core ansible-lint
+          ansible-galaxy collection install community.general ansible.posix
+
+      # Placeholders for the gitignored files the playbooks read
+      - name: Placeholder secrets
+        run: |
+          cp .env.example .env
+          cp authorized_keys.example authorized_keys
+
+      - name: Syntax check
+        run: |
+          ansible-playbook site.yml --syntax-check
+          ansible-playbook bootstrap.yml --syntax-check
+
+      - name: ansible-lint
+        run: ansible-lint
+
+      - name: shellcheck
+        run: shellcheck roles/bjtu_login/files/bjtu-login

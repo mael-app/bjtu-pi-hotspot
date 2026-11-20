@@ -1,0 +1,6 @@
+---
+base_disabled_services:
+  - avahi-daemon.service
+  - avahi-daemon.socket
+  - bluetooth.service
+  - wpa_supplicant.service
