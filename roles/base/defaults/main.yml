@@ -4,3 +4,12 @@ base_disabled_services:
   - avahi-daemon.socket
   - bluetooth.service
   - wpa_supplicant.service
+
+# Camera stack shipped with Raspberry Pi OS: unused here, and its library
+# transitions (libcamera 0.7 -> 0.8) block unattended upgrades.
+base_removed_packages:
+  - rpicam-apps-lite
+  - rpicam-apps-core
+  - librpicam-app1
+  - libcamera-ipa
+  - libcamera0*

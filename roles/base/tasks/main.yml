@@ -16,6 +16,13 @@
     update_cache: true
     cache_valid_time: 3600
 
+- name: Remove unused packages
+  ansible.builtin.apt:
+    name: "{{ base_removed_packages }}"
+    state: absent
+    purge: true
+    autoremove: true
+
 # Unused on a wired gateway: less attack surface, nothing announced on the
 # university network (mDNS), fewer services to keep updated.
 - name: Disable unused services
