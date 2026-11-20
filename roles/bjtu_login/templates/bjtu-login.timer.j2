@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Periodic BJTU authentication check
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ bjtu_check_interval }}
+Unit=bjtu-login.service
+
+[Install]
+WantedBy=timers.target

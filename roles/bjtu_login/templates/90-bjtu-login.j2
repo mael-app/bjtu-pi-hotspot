@@ -1,0 +1,6 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Re-run the BJTU login when the WAN interface comes up (logs go to journald).
+if [ "$1" = "{{ wan_interface }}" ] && [ "$2" = "up" ]; then
+    systemctl start --no-block bjtu-login.service
+fi

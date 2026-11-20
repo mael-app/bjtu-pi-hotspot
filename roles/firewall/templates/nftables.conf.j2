@@ -1,0 +1,38 @@
+#!/usr/sbin/nft -f
+# Inbound firewall for the Raspberry Pi.
+# No "flush ruleset": NetworkManager manages its own tables (sharing on {{ lan_interface }}).
+# Only the rpi_guard table is (re)created here.
+
+table inet rpi_guard
+delete table inet rpi_guard
+
+table inet rpi_guard {
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		iif "lo" accept
+		ct state established,related accept
+		ct state invalid drop
+
+		# Private LAN served by the Pi (dnsmasq DHCP/DNS): everything allowed
+		iifname "{{ lan_interface }}" accept
+
+		# ICMP (rate-limited ping) and ICMPv6, which IPv6 needs to work
+		ip protocol icmp icmp type echo-request limit rate 5/second accept
+		ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+		ip6 nexthdr icmpv6 accept
+
+		# Client DHCPv6
+		ip6 saddr fe80::/10 udp dport 546 accept
+
+{% for port in ([ssh_port | int, ansible_port | int] | unique) %}
+		tcp dport {{ port }} accept comment "SSH"
+{% endfor %}
+{% for port in firewall_extra_tcp_ports %}
+		tcp dport {{ port }} accept comment "extra tcp"
+{% endfor %}
+{% for port in firewall_extra_udp_ports %}
+		udp dport {{ port }} accept comment "extra udp"
+{% endfor %}
+	}
+}

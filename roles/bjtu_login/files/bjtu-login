@@ -1,0 +1,80 @@
+#!/bin/bash
+# Authenticate to the BJTU captive portal through the WAN interface.
+# Environment (/etc/bjtu-login.env, all required): BJTU_USERNAME, BJTU_PASSWORD,
+# BJTU_INTERFACE, BJTU_PORTAL_URL, BJTU_REFERER_URL, BJTU_CHECK_URL.
+# Exit codes: 0 online, 1 login/Internet failure, 2 config/interface error.
+set -euo pipefail
+
+: "${BJTU_USERNAME:?missing}" "${BJTU_PASSWORD:?missing}" "${BJTU_PORTAL_URL:?missing}"
+: "${BJTU_REFERER_URL:?missing}" "${BJTU_CHECK_URL:?missing}"
+IFACE="${BJTU_INTERFACE:?missing}"
+
+has_internet() {
+    curl --interface "$IFACE" --silent --output /dev/null \
+        --max-time 5 --fail "$BJTU_CHECK_URL"
+}
+
+login() {
+    local ip="$1" v response
+    # "v" is a portal anti-cache parameter: random 4-digit value
+    # (the old `date +%s%N | cut -c1-4` gave the first 4 digits of the
+    # timestamp, hence a constant value).
+    v=$((RANDOM % 9000 + 1000))
+
+    # The password is read from stdin (builtin printf): never in curl's
+    # arguments, so it is invisible in `ps`.
+    # wlan_user_mac=000000000000 and empty wlan_ac_ip: behaviour validated in production.
+    response=$(printf '%s' "$BJTU_PASSWORD" | curl \
+        --interface "$IFACE" --silent --show-error --max-time 15 --compressed \
+        --get "$BJTU_PORTAL_URL" \
+        --url-query "callback=dr1003" \
+        --url-query "login_method=1" \
+        --url-query "user_account=$BJTU_USERNAME" \
+        --url-query "user_password@/dev/stdin" \
+        --url-query "wlan_user_ip=$ip" \
+        --url-query "wlan_user_ipv6=" \
+        --url-query "wlan_user_mac=000000000000" \
+        --url-query "wlan_ac_ip=" \
+        --url-query "wlan_ac_name=" \
+        --url-query "jsVersion=4.2.1" \
+        --url-query "terminal_type=1" \
+        --url-query "lang=en" \
+        --url-query "v=$v" \
+        --referer "$BJTU_REFERER_URL" \
+        --user-agent "Mozilla/5.0") || { echo "Portal unreachable."; return 1; }
+
+    echo "Portal response: $response"
+    # Success, or session already active (ret_code 2 / "已经在线").
+    grep -q '"result":1' <<<"$response" && return 0
+    grep -q '已经在线' <<<"$response"
+}
+
+if [[ ! -e /sys/class/net/$IFACE ]]; then
+    echo "Error: interface $IFACE does not exist." >&2
+    exit 2
+fi
+
+ip=$(ip -4 -o addr show dev "$IFACE" | awk '{sub(/\/.*/, "", $4); print $4; exit}')
+if [[ -z "$ip" ]]; then
+    echo "Error: no IPv4 address on $IFACE." >&2
+    exit 2
+fi
+
+if has_internet; then
+    echo "Internet already available ($IFACE, $ip). Nothing to do."
+    exit 0
+fi
+
+echo "Internet unavailable on $IFACE ($ip): authenticating."
+login "$ip" || { echo "BJTU login failed." >&2; exit 1; }
+
+# The portal takes a few seconds to open access: 3 attempts.
+for _ in 1 2 3; do
+    sleep 2
+    if has_internet; then
+        echo "Internet is now available."
+        exit 0
+    fi
+done
+echo "Login accepted, but Internet is still unavailable." >&2
+exit 1

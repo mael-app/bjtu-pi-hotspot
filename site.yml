@@ -1,0 +1,10 @@
+- name: BJTU Pi hotspot
+  hosts: all
+  become: true
+  roles:
+    - bjtu_login   # first: without the portal there is no Internet, so no apt
+    - base
+    - network
+    - firewall
+    - autoupdate
+    - ssh          # last: changes the SSH port

@@ -1,0 +1,26 @@
+# Prepares a freshly flashed SD card (Raspberry Pi OS Lite, no Imager customisation).
+# Usage: ansible-playbook bootstrap.yml -e boot=/run/media/$USER/bootfs
+- name: Write the cloud-init config to the boot partition
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    hostname: bjtu-pi
+  tasks:
+    - name: Check that the boot partition is mounted
+      ansible.builtin.stat:
+        path: "{{ boot }}/config.txt"
+      register: boot_config
+      failed_when: not boot_config.stat.exists
+
+    - name: Write user-data
+      ansible.builtin.template:
+        src: bootstrap/user-data.j2
+        dest: "{{ boot }}/user-data"
+        mode: "0644"
+
+    - name: Write meta-data
+      ansible.builtin.copy:
+        dest: "{{ boot }}/meta-data"
+        content: "instance-id: bjtu-pi-hotspot-{{ now(utc=true, fmt='%Y%m%d%H%M%S') }}\n"
+        mode: "0644"

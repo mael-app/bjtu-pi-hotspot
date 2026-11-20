@@ -1,0 +1,100 @@
+- name: Install credentials (/etc/bjtu-login.env)
+  ansible.builtin.template:
+    src: bjtu-login.env.j2
+    dest: /etc/bjtu-login.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install the login script
+  ansible.builtin.copy:
+    src: bjtu-login
+    dest: /usr/local/bin/bjtu-login
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the systemd service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - bjtu-login.service
+    - bjtu-login.timer
+  notify: Reload systemd
+
+- name: Install the NetworkManager dispatcher
+  ansible.builtin.template:
+    src: 90-bjtu-login.j2
+    dest: /etc/NetworkManager/dispatcher.d/90-bjtu-login
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Run daemon-reload before enabling the timer
+  ansible.builtin.meta: flush_handlers
+
+# --- Bootstrap of a fresh Pi: initial login without apt or script ---
+- name: Test Internet access
+  ansible.builtin.uri:
+    url: "{{ bjtu_login_check_url }}"
+    timeout: "{{ bjtu_login_check_timeout }}"
+    return_content: false
+  register: bjtu_login_internet
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Initial login to the BJTU portal
+  ansible.builtin.uri:
+    url: "{{ bjtu_portal_url }}?{{ bjtu_login_params | ansible.builtin.urlencode }}"
+    headers:
+      Referer: "{{ bjtu_referer_url }}"
+      User-Agent: Mozilla/5.0
+    return_content: true
+    timeout: 15
+  vars:
+    bjtu_login_params:
+      callback: dr1003
+      login_method: 1
+      user_account: "{{ bjtu_username }}"
+      user_password: "{{ bjtu_password }}"
+      wlan_user_ip: "{{ ansible_facts[wan_interface]['ipv4']['address'] }}"
+      wlan_user_ipv6: ""
+      wlan_user_mac: "000000000000"
+      wlan_ac_ip: ""
+      wlan_ac_name: ""
+      jsVersion: 4.2.1
+      terminal_type: 1
+      lang: en
+      v: "{{ 9000 | random(start=1000) }}"
+  register: bjtu_login_result
+  when:
+    - not ansible_check_mode
+    - bjtu_login_internet.status | default(-1) != 200
+  changed_when: true
+  failed_when: >-
+    '"result":1' not in (bjtu_login_result.content | default('')) and
+    '已经在线' not in (bjtu_login_result.content | default(''))
+  no_log: true
+
+- name: Check Internet access after login
+  ansible.builtin.uri:
+    url: "{{ bjtu_login_check_url }}"
+    timeout: "{{ bjtu_login_check_timeout }}"
+  register: bjtu_login_verify
+  until: bjtu_login_verify.status == 200
+  retries: 5
+  delay: 3
+  changed_when: false
+  when: bjtu_login_result is changed
+
+- name: Enable the BJTU login timer
+  ansible.builtin.systemd_service:
+    name: bjtu-login.timer
+    enabled: true
+    state: started

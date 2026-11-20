@@ -1,0 +1,17 @@
+---
+- name: Timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Project packages
+  ansible.builtin.apt:
+    name:
+      - python3-apt
+      - curl
+      - nftables
+      - fail2ban
+      - network-manager
+      - dnsmasq-base
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

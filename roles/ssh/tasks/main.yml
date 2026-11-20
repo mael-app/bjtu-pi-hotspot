@@ -1,0 +1,47 @@
+---
+# Keys first: they must be in place before password auth is turned off.
+- name: Authorized SSH keys for root (exclusive, deduplicated)
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ ssh_authorized_keys | select('match', '^\\s*[^#\\s]') | map('trim') | join('\n') }}"
+    exclusive: true
+
+- name: sshd hardening drop-in
+  ansible.builtin.template:
+    src: 05-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/05-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sshd
+
+- name: sshd port drop-in
+  ansible.builtin.template:
+    src: 10-port.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-port.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sshd
+
+# Validate the full config (drop-ins included) BEFORE any restart:
+# on error the play stops here and the handlers do not run.
+- name: Validate sshd configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  check_mode: false
+
+- name: Apply sshd now
+  ansible.builtin.meta: flush_handlers
+
+- name: Reconnect on the new port if needed
+  when: (ansible_port | int) != (ssh_port | int)
+  block:
+    - name: Use the new SSH port
+      ansible.builtin.set_fact:
+        ansible_port: "{{ ssh_port }}"
+
+    - name: Wait for the connection
+      ansible.builtin.wait_for_connection:
+        delay: 3
+        timeout: 60

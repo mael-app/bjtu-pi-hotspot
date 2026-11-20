@@ -1,0 +1,14 @@
+---
+# Fire-and-forget: if the controller reaches the Pi through the hotspot,
+# the switch cuts SSH for a moment; nmcli must still finish on the Pi.
+- name: Activate the LAN connection
+  ansible.builtin.command: "nmcli connection up {{ lan_connection }}"
+  async: 60
+  poll: 0
+  changed_when: true
+  notify: Wait for the connection after the LAN switch
+
+- name: Wait for the connection after the LAN switch
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 120

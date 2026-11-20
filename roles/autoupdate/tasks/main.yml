@@ -1,0 +1,116 @@
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Deploy 20auto-upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Deploy 52auto-upgrades-local
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52auto-upgrades-local
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Origins-Pattern {
+              "origin=Debian,codename=${distro_codename}-updates";
+              "origin=Raspberry Pi Foundation,codename=${distro_codename}";
+      };
+
+- name: Create drop-in directories for the apt timers
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.timer.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - apt-daily
+    - apt-daily-upgrade
+
+- name: Schedule apt-daily (update)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/apt-daily.timer.d/schedule.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Timer]
+      OnCalendar=
+      OnCalendar=*-*-* {{ apt_update_time }}:00
+      RandomizedDelaySec=0
+  notify: Reload systemd
+
+- name: Schedule apt-daily-upgrade
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/apt-daily-upgrade.timer.d/schedule.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Timer]
+      OnCalendar=
+      OnCalendar=*-*-* {{ apt_upgrade_time }}:00
+      RandomizedDelaySec=0
+  notify: Reload systemd
+
+- name: conditional-reboot.service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/conditional-reboot.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Reboot only when an installed update requires it
+      ConditionPathExists=/var/run/reboot-required
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/systemctl reboot
+  notify: Reload systemd
+
+- name: conditional-reboot.timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/conditional-reboot.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Daily conditional reboot check
+
+      [Timer]
+      OnCalendar=*-*-* {{ reboot_check_time }}:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Apply systemd units before enabling them
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+    - conditional-reboot.timer

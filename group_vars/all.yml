@@ -1,0 +1,24 @@
+# --- Network ---
+wan_interface: eth0              # University Ethernet (captive portal)
+lan_interface: eth1              # To the TP-Link hotspot
+lan_address: 192.168.50.1/24      # Pi address on the hotspot LAN (also the Ansible target)
+lan_connection: hotspot-lan       # NetworkManager connection name for the LAN
+
+# --- System ---
+timezone: Asia/Shanghai
+ssh_port: 22422
+ssh_authorized_keys: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/authorized_keys').splitlines() }}"
+firewall_extra_tcp_ports: []
+firewall_extra_udp_ports: []
+
+# --- BJTU portal (credentials read from .env, not committed) ---
+bjtu_username: "{{ lookup('ansible.builtin.ini', 'BJTU_USERNAME', file=playbook_dir ~ '/.env', type='properties') }}"
+bjtu_password: "{{ lookup('ansible.builtin.ini', 'BJTU_PASSWORD', file=playbook_dir ~ '/.env', type='properties') }}"
+bjtu_portal_url: http://10.10.42.3:801/eportal/portal/login
+bjtu_referer_url: http://10.10.42.3/
+bjtu_check_interval: 5min
+
+# --- Automatic updates ---
+apt_update_time: "03:00"
+apt_upgrade_time: "04:00"
+reboot_check_time: "05:00"

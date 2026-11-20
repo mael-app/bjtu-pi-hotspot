@@ -1,0 +1,2 @@
+# One public SSH key per line. Granted root access to the Pi (exclusive: any other key is removed).
+# ssh-ed25519 AAAA... you@laptop

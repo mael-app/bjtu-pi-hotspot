@@ -1,0 +1,19 @@
+---
+# eth0 is deliberately not managed: NetworkManager's default DHCP v4/v6
+# is enough, and touching nothing rules out any SSH cut-off.
+
+- name: Private LAN connection (shared via NAT + DHCP/DNS)
+  community.general.nmcli:
+    type: ethernet
+    conn_name: "{{ lan_connection }}"
+    ifname: "{{ lan_interface }}"
+    method4: shared
+    ip4: "{{ lan_address }}"
+    never_default4: true
+    method6: disabled
+    autoconnect: true
+    state: present
+  notify: Activate the LAN connection
+
+- name: Activate the LAN connection now
+  ansible.builtin.meta: flush_handlers

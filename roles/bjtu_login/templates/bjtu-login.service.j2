@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=BJTU captive portal authentication
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/bjtu-login.env
+ExecStart=/usr/local/bin/bjtu-login
