@@ -68,7 +68,7 @@
       RandomizedDelaySec=0
   notify: Reload systemd
 
-- name: conditional-reboot.service
+- name: Conditional reboot service
   ansible.builtin.copy:
     dest: /etc/systemd/system/conditional-reboot.service
     owner: root
@@ -84,7 +84,7 @@
       ExecStart=/usr/bin/systemctl reboot
   notify: Reload systemd
 
-- name: conditional-reboot.timer
+- name: Conditional reboot timer
   ansible.builtin.copy:
     dest: /etc/systemd/system/conditional-reboot.timer
     owner: root

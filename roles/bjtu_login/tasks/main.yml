@@ -91,7 +91,7 @@
   retries: 5
   delay: 3
   changed_when: false
-  when: bjtu_login_result is changed
+  when: bjtu_login_result is not skipped
 
 - name: Enable the BJTU login timer
   ansible.builtin.systemd_service:

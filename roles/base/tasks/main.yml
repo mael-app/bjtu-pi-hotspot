@@ -35,7 +35,7 @@
       dtoverlay=disable-bt
   notify: Schedule a reboot
 
-- name: systemd drop-in directories
+- name: Systemd drop-in directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
